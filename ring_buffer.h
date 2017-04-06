@@ -97,7 +97,7 @@ public:
         os << " }";
         return os;
     }
-    
+
 protected:
     size_t size;
     size_t an_element_size;

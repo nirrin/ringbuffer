@@ -10,18 +10,18 @@ public:
 		}
 	}
 
-	virtual ~RedisRingBuffer() {		
+	virtual ~RedisRingBuffer() {
 		for (size_t i = 0; i < size; i++) {
 			if (elements[i]) {
-				RedisModule_FreeString(ctx, elements[i]);								
+				RedisModule_FreeString(ctx, elements[i]);
 				elements[i] = NULL;
 			}
-		}		
+		}
 		RedisModule_Free(elements);
-		elements = NULL;			
+		elements = NULL;
 	}
 
-	inline size_t memory_usage() const {		
+	inline size_t memory_usage() const {
 		size_t size = sizeof(RedisRingBuffer);
 		for (size_t i = 0; i < size; i++) {
 			if (elements[i]) {
@@ -29,33 +29,33 @@ public:
 				RedisModule_StringPtrLen(elements[i], &len);
 				size += len;
 			}
-		}		
+		}
 		return (size);
 	}
 
 	inline void write_string(const RedisModuleString* element) {
 		if (elements[b_end]) {
-			RedisModule_FreeString(ctx, elements[b_end]);			
-		}		
+			RedisModule_FreeString(ctx, elements[b_end]);
+		}
 		elements[b_end] = RedisModule_CreateStringFromString(ctx, element);
 		post_write();
 	}
 
 	inline void on_load(const size_t start_, const size_t end_, const short int s_msb_, const short int e_msb_, RedisModuleString** elements_) {
-        b_start = start_;
-        b_end = end_;
-        s_msb = s_msb_;
-        e_msb = e_msb_;
-        memcpy((void*)elements, (void*)elements_, size * an_element_size);
-    }
+		b_start = start_;
+		b_end = end_;
+		s_msb = s_msb_;
+		e_msb = e_msb_;
+		memcpy((void*)elements, (void*)elements_, size * an_element_size);
+	}
 
-    inline void on_save(size_t& start_, size_t& end_, short int& s_msb_, short int& e_msb_, RedisModuleString** elements_) {        
+	inline void on_save(size_t& start_, size_t& end_, short int& s_msb_, short int& e_msb_, RedisModuleString** elements_) {
 		start_ = b_start;
-        end_ = b_end;
-        s_msb_ = s_msb;
-        e_msb_ = e_msb;
-        memcpy((void*)elements_, (void*)elements, size * an_element_size);
-    }
+		end_ = b_end;
+		s_msb_ = s_msb;
+		e_msb_ = e_msb;
+		memcpy((void*)elements_, (void*)elements, size * an_element_size);
+	}
 
 private:
 	RedisModuleCtx* ctx;
@@ -63,7 +63,7 @@ private:
 
 static RedisModuleType* RingBufferType;
 
-void* RingBufferRdbLoad(RedisModuleIO* rdb, int encver) {	
+void* RingBufferRdbLoad(RedisModuleIO* rdb, int encver) {
 	if (encver != 0) {
 		return NULL;
 	}
@@ -73,7 +73,7 @@ void* RingBufferRdbLoad(RedisModuleIO* rdb, int encver) {
 	short int s_msb = (short int)RedisModule_LoadSigned(rdb);
 	short int e_msb = (short int)RedisModule_LoadSigned(rdb);
 	RedisModuleString** elements = (RedisModuleString**)RedisModule_Alloc(sizeof(RedisModuleString*) * size);
-	for (size_t i = 0; i < size; i++) {	
+	for (size_t i = 0; i < size; i++) {
 		elements[i] = RedisModule_LoadString(rdb);
 		size_t len = 0;
 		RedisModule_StringPtrLen(elements[i], &len);
@@ -90,7 +90,7 @@ void* RingBufferRdbLoad(RedisModuleIO* rdb, int encver) {
 void RingBufferRdbSave(RedisModuleIO *rdb, void* value) {
 	RedisRingBuffer* buffer = (RedisRingBuffer*)value;
 	size_t size = buffer->buffer_size();
-	RedisModule_SaveUnsigned(rdb, size);	
+	RedisModule_SaveUnsigned(rdb, size);
 	size_t start = 0;
 	size_t end = 0;
 	short int s_msb = 0;
@@ -102,7 +102,7 @@ void RingBufferRdbSave(RedisModuleIO *rdb, void* value) {
 	RedisModule_SaveSigned(rdb, s_msb);
 	RedisModule_SaveSigned(rdb, e_msb);
 	for (size_t i = 0; i < size; i++) {
-		if (elements[i]) {			
+		if (elements[i]) {
 			RedisModule_SaveString(rdb, elements[i]);
 		} else {
 			RedisModule_SaveString(rdb, RedisModule_CreateString(RedisModule_GetContextFromIO(rdb), "", 0));
@@ -119,7 +119,7 @@ void RingBufferAofRewrite(RedisModuleIO *aof, RedisModuleString *key, void *valu
 	}
 }
 
-size_t RingBufferMemUsage(const void *value) {	
+size_t RingBufferMemUsage(const void *value) {
 	RedisRingBuffer* buffer = (RedisRingBuffer*)value;
 	return (buffer->memory_usage());
 }
@@ -127,8 +127,8 @@ size_t RingBufferMemUsage(const void *value) {
 void RingBufferDigest(RedisModuleDigest __attribute__((unused)) *digest, void __attribute__((unused)) *value) {
 }
 
-void RingBufferFree(void *value) {	
-	delete (RedisRingBuffer*)value;	
+void RingBufferFree(void *value) {
+	delete (RedisRingBuffer*)value;
 }
 
 extern "C" {
@@ -136,23 +136,23 @@ extern "C" {
 	* usage: 	RingBufferCreate name, size
 	* returns: 	nil
 	*/
-	int RedisRingBuffer_Create_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {		
+	int RedisRingBuffer_Create_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 		RedisModule_AutoMemory(ctx);
 		if (argc != 3) {
 			return RedisModule_WrongArity(ctx);
-		}		
+		}
 		RedisModuleKey* key = (RedisModuleKey*)RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ | REDISMODULE_WRITE);
-		const int type = RedisModule_KeyType(key);		
+		const int type = RedisModule_KeyType(key);
 		if (type != REDISMODULE_KEYTYPE_EMPTY) {
 			return RedisModule_ReplyWithError(ctx, "already exist");
-		}		
+		}
 		long long size;
 		if ((RedisModule_StringToLongLong(argv[2], &size) != REDISMODULE_OK) || (size <= 0)) {
 			return RedisModule_ReplyWithError(ctx, "invalid size: must be a natural number");
-		}		
-		RedisRingBuffer* buffer = new RedisRingBuffer(ctx, (size_t)size);		
-		RedisModule_ModuleTypeSetValue(key, RingBufferType, buffer);		
-		RedisModule_ReplicateVerbatim(ctx);		
+		}
+		RedisRingBuffer* buffer = new RedisRingBuffer(ctx, (size_t)size);
+		RedisModule_ModuleTypeSetValue(key, RingBufferType, buffer);
+		RedisModule_ReplicateVerbatim(ctx);
 		return RedisModule_ReplyWithNull(ctx);
 	}
 
@@ -160,7 +160,7 @@ extern "C" {
 	* usage: 	RingBufferCreate name, data1 [, data2 ... ]
 	* returns: 	nil
 	*/
-	int RedisRingBuffer_Write_RedisCommand(RedisModuleCtx *ctx, RedisModuleString** __attribute__((unused)) argv, int __attribute__((unused)) argc) {		
+	int RedisRingBuffer_Write_RedisCommand(RedisModuleCtx *ctx, RedisModuleString** __attribute__((unused)) argv, int __attribute__((unused)) argc) {
 		if (argc < 3) {
 			return RedisModule_WrongArity(ctx);
 		}
@@ -218,7 +218,7 @@ extern "C" {
 	*/
 	int RedisRingBuffer_Length_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 		RING_BUFFER
-		return RedisModule_ReplyWithLongLong(ctx, buffer->length());		
+		return RedisModule_ReplyWithLongLong(ctx, buffer->length());
 	}
 
 	/***
@@ -227,7 +227,7 @@ extern "C" {
 	*/
 	int RedisRingBuffer_IsFull_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 		RING_BUFFER
-		return RedisModule_ReplyWithLongLong(ctx, buffer->is_full());		
+		return RedisModule_ReplyWithLongLong(ctx, buffer->is_full());
 	}
 
 	/***
@@ -236,7 +236,7 @@ extern "C" {
 	*/
 	int RedisRingBuffer_IsEmpty_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 		RING_BUFFER
-		return RedisModule_ReplyWithLongLong(ctx, buffer->is_empty());		
+		return RedisModule_ReplyWithLongLong(ctx, buffer->is_empty());
 	}
 
 	/***
@@ -245,7 +245,7 @@ extern "C" {
 	*/
 	int RedisRingBuffer_Size_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 		RING_BUFFER
-		return RedisModule_ReplyWithLongLong(ctx, buffer->buffer_size());		
+		return RedisModule_ReplyWithLongLong(ctx, buffer->buffer_size());
 	}
 
 	/***
@@ -257,7 +257,7 @@ extern "C" {
 		if (buffer->is_empty()) {
 			return RedisModule_ReplyWithNull(ctx);
 		} else {
-			return RedisModule_ReplyWithString(ctx, buffer->front());		
+			return RedisModule_ReplyWithString(ctx, buffer->front());
 		}
 	}
 
@@ -270,7 +270,7 @@ extern "C" {
 		if (buffer->is_empty()) {
 			return RedisModule_ReplyWithNull(ctx);
 		} else {
-			return RedisModule_ReplyWithString(ctx, buffer->back());		
+			return RedisModule_ReplyWithString(ctx, buffer->back());
 		}
 	}
 
@@ -283,15 +283,15 @@ extern "C" {
 		if (buffer->is_empty()) {
 			return RedisModule_ReplyWithNull(ctx);
 		} else {
-			RedisModule_ReplyWithArray(ctx, REDISMODULE_POSTPONED_ARRAY_LEN); 
+			RedisModule_ReplyWithArray(ctx, REDISMODULE_POSTPONED_ARRAY_LEN);
 			buffer->begin();
 			size_t length = 0;
-			while (!buffer->end()) {				
+			while (!buffer->end()) {
 				RedisModule_ReplyWithString(ctx, buffer->next());
 				length++;
-			}			
-			RedisModule_ReplySetArrayLength(ctx, length);			
-			RedisModule_ReplicateVerbatim(ctx);			
+			}
+			RedisModule_ReplySetArrayLength(ctx, length);
+			RedisModule_ReplicateVerbatim(ctx);
 			return REDISMODULE_OK;
 		}
 	}
@@ -303,7 +303,7 @@ extern "C" {
 	int RedisRingBuffer_Clear_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 		RING_BUFFER
 		buffer->clear();
-		return RedisModule_ReplyWithNull(ctx);		
+		return RedisModule_ReplyWithNull(ctx);
 	}
 
 #define CREATE_COMMAND(name, command, policy)	if (RedisModule_CreateCommand(ctx, name, command, policy, 1, 1, 1) == REDISMODULE_ERR) { \
@@ -326,7 +326,7 @@ extern "C" {
 		RingBufferType = RedisModule_CreateDataType(ctx, "ringbuffr", 0, &tm);
 		if (RingBufferType == NULL) {
 			return REDISMODULE_ERR;
-		}		
+		}
 		CREATE_COMMAND("RingBufferCreate", RedisRingBuffer_Create_RedisCommand, "write deny-oom");
 		CREATE_COMMAND("RingBufferWrite", RedisRingBuffer_Write_RedisCommand, "write deny-oom");
 		CREATE_COMMAND("RingBufferRead", RedisRingBuffer_Read_RedisCommand, "write");
